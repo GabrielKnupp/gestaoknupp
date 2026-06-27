@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestão da Fazenda de Café</title>
+
+<!-- PWA -->
+<meta name="theme-color" content="#3B6D11">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fazenda Café">
+<meta name="description" content="Sistema de gestão completo para fazenda de café">
+<link rel="manifest" id="pwa-manifest">
+
+<!-- Ícone para iPhone -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%233B6D11'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E☕%3C/text%3E%3C/svg%3E">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+
+<script>
+// Gera o manifest.json dinamicamente
+const manifest = {
+  name: "Gestão da Fazenda de Café",
+  short_name: "Fazenda Café",
+  description: "Sistema completo de gestão para fazenda de café",
+  start_url: "./",
+  display: "standalone",
+  background_color: "#f5f5f0",
+  theme_color: "#3B6D11",
+  orientation: "portrait-primary",
+  icons: [
+    {
+      src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%233B6D11'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%E2%98%95%3C/text%3E%3C/svg%3E",
+      sizes: "192x192", type: "image/svg+xml"
+    },
+    {
+      src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='80' fill='%233B6D11'/%3E%3Ctext x='256' y='360' font-size='280' text-anchor='middle'%3E%E2%98%95%3C/text%3E%3C/svg%3E",
+      sizes: "512x512", type: "image/svg+xml"
+    }
+  ]
+};
+const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
+
+// Registra o Service Worker para funcionar offline
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    const swCode = `
+const CACHE = 'fazenda-v1';
+const ASSETS = ['./', './index.html'];
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  self.skipWaiting();
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
+  self.clients.claim();
+});
+self.addEventListener('fetch', e => {
+  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('./index.html'))));
+});
+    `;
+    const swBlob = new Blob([swCode], {type: 'application/javascript'});
+    const swUrl = URL.createObjectURL(swBlob);
+    navigator.serviceWorker.register(swUrl).catch(()=>{});
+  });
+}
+</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f0;color:#1a1a1a;min-height:100vh}
+input,select,textarea{font-family:inherit;font-size:13px;padding:6px 10px;border:1px solid #d0d0c8;border-radius:6px;background:#fff;color:#1a1a1a;outline:none}
+input:focus,select:focus,textarea:focus{border-color:#3B6D11;box-shadow:0 0 0 2px #3B6D1122}
+
+:root{--g:#3B6D11;--gl:#EAF3DE;--a:#BA7517;--al:#FAEEDA;--r:#A32D2D;--rl:#FCEBEB;--b:#185FA5;--bl:#E6F1FB;--p:#534AB7;--pl:#EEEDFE}
+
+.topbar{background:#fff;border-bottom:1px solid #e0e0d8;padding:12px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px #0000000a}
+.topbar h1{font-size:17px;font-weight:600;color:var(--g);flex:1}
+.topbar .sub{font-size:11px;color:#888;display:block}
+.dbadge{font-size:11px;color:#666;background:#f0f0ea;padding:4px 10px;border-radius:20px;border:1px solid #e0e0d8}
+
+.tabs-wrap{background:#fff;border-bottom:1px solid #e0e0d8;padding:0 20px;overflow-x:auto;white-space:nowrap}
+.tabs{display:inline-flex;gap:0}
+.tab{padding:10px 14px;font-size:12px;cursor:pointer;border:none;background:none;color:#666;border-bottom:2px solid transparent;font-weight:500;transition:color .15s}
+.tab:hover{color:#333}
+.tab.active{color:var(--g);border-bottom-color:var(--g)}
+
+.content{padding:20px;max-width:1100px;margin:0 auto}
+.panel{display:none}.panel.active{display:block}
+
+.card{background:#fff;border:1px solid #e0e0d8;border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 3px #0000000a}
+.stitle{font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.stitle i{color:var(--g)}
+
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+@media(max-width:700px){.g2,.g3,.g4,.g5{grid-template-columns:1fr 1fr}.g5{grid-template-columns:1fr}}
+@media(max-width:480px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+.field{margin-bottom:10px}
+.field label{display:block;font-size:11px;font-weight:500;color:#555;margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px}
+.field input,.field select,.field textarea{width:100%}
+.field textarea{height:60px;resize:vertical}
+
+.btn{padding:7px 16px;border-radius:7px;font-size:13px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px;transition:all .15s;border:1px solid transparent}
+.btn-p{background:var(--g);color:#fff;border-color:var(--g)}
+.btn-p:hover{background:#2d5409}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-d{background:var(--rl);color:var(--r);border-color:#e0b0b0}
+.btn-i{background:var(--bl);color:var(--b);border-color:#b0c8e8}
+.btn-a{background:var(--al);color:var(--a);border-color:#e0c080}
+
+.scard{background:#f8f8f4;border:1px solid #e8e8e0;border-radius:8px;padding:14px;text-align:center}
+.sval{font-size:20px;font-weight:600;color:#1a1a1a}
+.slbl{font-size:11px;color:#888;margin-top:2px}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.bg{background:var(--gl);color:var(--g)}
+.ba{background:var(--al);color:var(--a)}
+.br{background:var(--rl);color:var(--r)}
+.bb{background:var(--bl);color:var(--b)}
+.bp{background:var(--pl);color:var(--p)}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;font-weight:600;font-size:11px;color:#888;padding:8px 10px;border-bottom:1px solid #e8e8e0;text-transform:uppercase;letter-spacing:.3px}
+td{padding:8px 10px;border-bottom:1px solid #f0f0ea;color:#1a1a1a;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafaf6}
+
+.pbar{background:#e8e8e0;border-radius:99px;height:8px;overflow:hidden;margin-top:5px}
+.pfill{height:100%;border-radius:99px;background:var(--g);transition:width .4s}
+
+.empty{text-align:center;padding:24px;color:#aaa;font-size:13px}
+.meta{font-size:11px;color:#888}
+.divider{border:none;border-top:1px solid #e8e8e0;margin:14px 0}
+
+.chip{display:inline-flex;align-items:center;gap:3px;padding:4px 10px;border-radius:99px;font-size:11px;cursor:pointer;border:1px solid #d0d0c8;background:#f5f5f0;color:#666;font-weight:500;transition:all .15s}
+.chip:hover{border-color:#aaa}
+.chip.present{background:var(--gl);color:var(--g);border-color:var(--g)}
+.chip.absent{background:var(--rl);color:var(--r);border-color:var(--r)}
+
+.alert-box{padding:8px 14px;border-radius:8px;font-size:12px;margin-bottom:10px;display:flex;align-items:center;gap:7px;font-weight:500}
+.al-s{background:var(--gl);color:var(--g);border:1px solid #b0d890}
+.al-w{background:var(--al);color:var(--a);border:1px solid #e0c070}
+.al-d{background:var(--rl);color:var(--r);border:1px solid #e0a0a0}
+
+.section-group{background:#f8f8f4;border:1px solid #e8e8e0;border-radius:8px;padding:12px 14px;margin-bottom:8px}
+
+.logo-icon{width:32px;height:32px;background:var(--g);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo-icon"><i class="ti ti-plant-2" aria-hidden="true"></i></div>
+  <div>
+    <h1>Gestão da Fazenda de Café</h1>
+    <span class="sub" id="ddisp"></span>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-left:auto">
+    <button class="btn btn-p btn-sm" id="btn-instalar" style="display:none" onclick="instalarApp()"><i class="ti ti-device-mobile"></i> Instalar App</button>
+    <button class="btn btn-a btn-sm" onclick="exportarTudo()"><i class="ti ti-download" aria-hidden="true"></i> Excel</button>
+    <button class="btn btn-i btn-sm" onclick="backupJSON()"><i class="ti ti-database" aria-hidden="true"></i> Backup</button>
+    <button class="btn btn-sm" onclick="document.getElementById('restore-file').click()" style="background:#f5f5f0;border-color:#d0d0c8"><i class="ti ti-upload" aria-hidden="true"></i> Restaurar</button>
+    <input type="file" id="restore-file" accept=".json" style="display:none" onchange="restaurarBackup(this)">
+    <div class="dbadge" id="versao">v3.0</div>
+  </div>
+</div>
+
+<!-- Banner de instalação iOS -->
+<div id="ios-banner" style="display:none;background:#3B6D11;color:#fff;padding:10px 16px;font-size:12px;text-align:center;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap">
+  <i class="ti ti-device-mobile"></i>
+  <span>Para instalar no iPhone: toque em <strong>Compartilhar</strong> <i class="ti ti-upload"></i> e depois <strong>"Adicionar à Tela de Início"</strong></span>
+  <button onclick="document.getElementById('ios-banner').style.display='none'" style="background:none;border:1px solid #fff;color:#fff;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px">✕ Fechar</button>
+</div>
+
+<div class="tabs-wrap">
+  <div class="tabs">
+    <button class="tab active" onclick="st('dashboard')"><i class="ti ti-layout-dashboard"></i> Painel</button>
+    <button class="tab" onclick="st('financeiro')"><i class="ti ti-cash"></i> Financeiro</button>
+    <button class="tab" onclick="st('relatorio')"><i class="ti ti-chart-bar"></i> Relatório</button>
+    <button class="tab" onclick="st('combustivel')"><i class="ti ti-gas-station"></i> Combustível</button>
+    <button class="tab" onclick="st('manutencao')"><i class="ti ti-tool"></i> Manutenção</button>
+    <button class="tab" onclick="st('problemas')"><i class="ti ti-alert-triangle"></i> Problemas</button>
+    <button class="tab" onclick="st('ganhos')"><i class="ti ti-coin"></i> Ganhos</button>
+    <button class="tab" onclick="st('presenca')"><i class="ti ti-users"></i> Presença</button>
+    <button class="tab" onclick="st('safra')"><i class="ti ti-basket"></i> Safra</button>
+    <button class="tab" onclick="st('talhoes')"><i class="ti ti-map"></i> Talhões</button>
+    <button class="tab" onclick="st('aplicacoes')"><i class="ti ti-spray"></i> Aplicações</button>
+    <button class="tab" onclick="st('qualidade')"><i class="ti ti-star"></i> Qualidade</button>
+    <button class="tab" onclick="st('clima')"><i class="ti ti-cloud"></i> Clima</button>
+    <button class="tab" onclick="st('epi')"><i class="ti ti-shield"></i> EPI</button>
+    <button class="tab" onclick="st('estoque')"><i class="ti ti-package"></i> Estoque</button>
+    <button class="tab" onclick="st('funcionarios')"><i class="ti ti-id-badge"></i> Funcionários</button>
+    <button class="tab" onclick="st('ordemservico')"><i class="ti ti-clipboard-list"></i> Ordem de Serviço</button>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- PAINEL -->
+<div id="panel-dashboard" class="panel active">
+  <div id="dash-alertas"></div>
+  <div class="g4" style="margin-bottom:14px" id="dash-stats"></div>
+  <div class="g2" style="margin-bottom:14px">
+    <div class="card"><div class="stitle"><i class="ti ti-cash"></i> Resultado financeiro</div><div id="dash-fin"></div></div>
+    <div class="card"><div class="stitle"><i class="ti ti-basket"></i> Safra atual</div><div id="dash-safra"></div></div>
+  </div>
+  <div class="g3">
+    <div class="card"><div class="stitle"><i class="ti ti-tool"></i> Manutenções agendadas</div><div id="dash-manut"></div></div>
+    <div class="card"><div class="stitle"><i class="ti ti-package"></i> Estoque crítico</div><div id="dash-estq"></div></div>
+    <div class="card"><div class="stitle"><i class="ti ti-alert-triangle"></i> Problemas abertos</div><div id="dash-probs"></div></div>
+  </div>
+</div>
+
+<!-- FINANCEIRO -->
+<div id="panel-financeiro" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-plus"></i> Lançar despesa / receita</div>
+    <div class="g3">
+      <div class="field"><label>Data</label><input type="date" id="fin-data"></div>
+      <div class="field"><label>Tipo</label><select id="fin-tipo"><option value="receita">Receita</option><option value="despesa">Despesa</option></select></div>
+      <div class="field"><label>Categoria</label><select id="fin-cat"><option>Venda de café</option><option>Venda de subproduto</option><option>Serviço prestado</option><option>Combustível</option><option>Mão de obra</option><option>Insumos / Fertilizantes</option><option>Manutenção</option><option>Energia elétrica</option><option>Arrendamento</option><option>Impostos / Taxas</option><option>EPI / Equipamentos</option><option>Outro</option></select></div>
+    </div>
+    <div class="g3">
+      <div class="field"><label>Valor (R$)</label><input type="number" id="fin-val" placeholder="0.00" step="0.01"></div>
+      <div class="field"><label>Vencimento</label><input type="date" id="fin-venc"></div>
+      <div class="field"><label>Status</label><select id="fin-status"><option value="pago">Pago / Recebido</option><option value="pendente">Pendente</option></select></div>
+    </div>
+    <div class="field"><label>Descrição</label><input type="text" id="fin-desc" placeholder="Detalhes do lançamento..."></div>
+    <button class="btn btn-p" onclick="addFin()"><i class="ti ti-plus"></i> Lançar</button>
+  </div>
+  <div class="card">
+    <div id="fin-resumo" style="margin-bottom:12px"></div>
+    <div class="stitle"><i class="ti ti-list"></i> Lançamentos</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <select id="fin-filtro-tipo" onchange="rFin()" style="font-size:12px"><option value="">Todos tipos</option><option value="receita">Receitas</option><option value="despesa">Despesas</option></select>
+      <select id="fin-filtro-status" onchange="rFin()" style="font-size:12px"><option value="">Todos status</option><option value="pago">Pagos</option><option value="pendente">Pendentes</option></select>
+    </div>
+    <div id="fin-lista"></div>
+  </div>
+</div>
+
+<!-- RELATÓRIO -->
+<div id="panel-relatorio" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-filter"></i> Filtrar período</div>
+    <div class="g3">
+      <div class="field"><label>Mês</label><select id="rel-mes"><option value="01">Janeiro</option><option value="02">Fevereiro</option><option value="03">Março</option><option value="04">Abril</option><option value="05">Maio</option><option value="06">Junho</option><option value="07">Julho</option><option value="08">Agosto</option><option value="09">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select></div>
+      <div class="field"><label>Ano</label><input type="number" id="rel-ano" value="2025" min="2020"></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn btn-p" onclick="gerarRel()"><i class="ti ti-chart-bar"></i> Gerar</button></div>
+    </div>
+  </div>
+  <div id="rel-output"></div>
+</div>
+
+<!-- COMBUSTÍVEL -->
+<div id="panel-combustivel" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-gas-station"></i> Registrar abastecimento</div>
+    <div class="g3">
+      <div class="field"><label>Data</label><input type="date" id="comb-data"></div>
+      <div class="field"><label>Máquina</label><select id="comb-tr"><option value="">Selecione...</option></select></div>
+      <div class="field"><label>Litros</label><input type="number" id="comb-l" placeholder="50" step="0.1"></div>
+    </div>
+    <div class="g3">
+      <div class="field"><label>Horímetro (h)</label><input type="number" id="comb-h" placeholder="1250"></div>
+      <div class="field"><label>Valor/L (R$)</label><input type="number" id="comb-v" placeholder="6.50" step="0.01"></div>
+      <div class="field"><label>Obs</label><input type="text" id="comb-obs" placeholder="Opcional"></div>
+    </div>
+    <button class="btn btn-p" onclick="addComb()"><i class="ti ti-plus"></i> Registrar</button>
+  </div>
+  <div class="card"><div class="stitle"><i class="ti ti-list"></i> Histórico</div><div id="comb-lista"></div></div>
+</div>
+
+<!-- MANUTENÇÃO -->
+<div id="panel-manutencao" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-tool"></i> Registrar manutenção</div>
+    <div class="g3">
+      <div class="field"><label>Máquina</label><select id="man-tr"><option value="">Selecione...</option></select></div>
+      <div class="field"><label>Tipo</label><select id="man-tipo"><option>Troca de óleo</option><option>Filtro de ar</option><option>Filtro de combustível</option><option>Filtro hidráulico</option><option>Correias</option><option>Pneus</option><option>Revisão geral</option><option>Outro</option></select></div>
+      <div class="field"><label>Status</label><select id="man-status"><option value="agendado">Agendado</option><option value="realizado">Realizado</option></select></div>
+    </div>
+    <div class="g3">
+      <div class="field"><label>Data</label><input type="date" id="man-data"></div>
+      <div class="field"><label>Horímetro</label><input type="number" id="man-hor" placeholder="1500"></div>
+      <div class="field"><label>Custo (R$)</label><input type="number" id="man-custo" placeholder="0.00" step="0.01"></div>
+    </div>
+    <div class="g2">
+      <div class="field"><label>Próxima manutenção</label><input type="text" id="man-prox" placeholder="ex: 1700h ou 15/08/2025"></div>
+      <div class="field"><label>Responsável</label><input type="text" id="man-resp" placeholder="Técnico / Mecânico"></div>
+    </div>
+    <div class="field"><label>Peças trocadas / Observações</label><textarea id="man-obs" placeholder="Descreva os serviços e peças..."></textarea></div>
+    <button class="btn btn-p" onclick="addMan()"><i class="ti ti-plus"></i> Registrar</button>
+  </div>
+  <div class="card"><div class="stitle"><i class="ti ti-list"></i> Histórico de manutenções</div><div id="man-lista"></div></div>
+</div>
+
+<!-- PROBLEMAS -->
+<div id="panel-problemas" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-alert-triangle"></i> Registrar problema</div>
+    <div class="g2">
+      <div class="field"><label>Data</label><input type="date" id="prob-data"></div>
+      <div class="field"><label>Categoria</label><select id="prob-cat"><option>Trator / Máquina</option><option>Irrigação</option><option>Praga / Doença</option><option>Clima</option><option>Infraestrutura</option><option>Outro</option></select></div>
+    </div>
+    <div class="field"><label>Descrição</label><textarea id="prob-desc" placeholder="Detalhe o problema..."></textarea></div>
+    <div class="g3">
+      <div class="field"><label>Gravidade</label><select id="prob-grav"><option>Baixa</option><option>Média</option><option>Alta</option></select></div>
+      <div class="field"><label>Custo (R$)</label><input type="number" id="prob-custo" placeholder="0.00" step="0.01"></div>
+      <div class="field"><label>Foto do problema</label><input type="file" id="prob-foto" accept="image/*"></div>
+    </div>
+    <div class="field"><label>Solução aplicada</label><textarea id="prob-sol" placeholder="Como foi resolvido (deixar vazio se pendente)..."></textarea></div>
+    <button class="btn btn-p" onclick="addProb()"><i class="ti ti-plus"></i> Registrar</button>
+  </div>
+  <div class="card"><div class="stitle"><i class="ti ti-list"></i> Histórico</div><div id="prob-lista"></div></div>
+</div>
+
+<!-- GANHOS -->
+<div id="panel-ganhos" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-coin"></i> Registrar ganho</div>
+    <div class="g2">
+      <div class="field"><label>Data</label><input type="date" id="g-data"></div>
+      <div class="field"><label>Categoria</label><select id="g-cat"><option>Venda de café</option><option>Venda de subproduto</option><option>Serviço prestado</option><option>Outro</option></select></div>
+    </div>
+    <div class="g3">
+      <div class="field"><label>Valor (R$)</label><input type="number" id="g-val" placeholder="0.00" step="0.01"></div>
+      <div class="field"><label>Sacas</label><input type="number" id="g-sacas" placeholder="0" step="0.5"></div>
+      <div class="field"><label>Preço/saca (R$)</label><input type="number" id="g-ps" placeholder="0.00" step="0.01"></div>
+    </div>
+    <div class="field"><label>Descrição</label><textarea id="g-desc" placeholder="Detalhes..."></textarea></div>
+    <button class="btn btn-p" onclick="addGanho()"><i class="ti ti-plus"></i> Registrar</button>
+  </div>
+  <div class="card"><div id="g-res"></div><div class="stitle" style="margin-top:12px"><i class="ti ti-list"></i> Histórico</div><div id="g-lista"></div></div>
+</div>
+
+<!-- PRESENÇA -->
+<div id="panel-presenca" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-users"></i> Ponto diário</div>
+    <div class="g2" style="margin-bottom:12px">
+      <div class="field"><label>Data</label><input type="date" id="pres-data"></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn btn-p" onclick="carregarPres()"><i class="ti ti-refresh"></i> Carregar lista</button></div>
+    </div>
+    <div id="pres-lista"></div>
+    <div id="pres-btn" style="display:none;margin-top:12px"><button class="btn btn-p" onclick="salvarPres()"><i class="ti ti-device-floppy"></i> Salvar presença</button></div>
+  </div>
+  <div class="card">
+    <div class="stitle"><i class="ti ti-calculator"></i> Folha de pagamento</div>
+    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">
+      <div class="field" style="margin:0"><label>Mês</label><select id="folha-mes"><option value="01">Janeiro</option><option value="02">Fevereiro</option><option value="03">Março</option><option value="04">Abril</option><option value="05">Maio</option><option value="06">Junho</option><option value="07">Julho</option><option value="08">Agosto</option><option value="09">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select></div>
+      <div class="field" style="margin:0"><label>Ano</label><input type="number" id="folha-ano" value="2025" style="width:80px"></div>
+      <button class="btn btn-i" onclick="calcFolha()"><i class="ti ti-calculator"></i> Calcular</button>
+    </div>
+    <div id="folha-res"></div>
+  </div>
+  <div class="card"><div class="stitle"><i class="ti ti-calendar"></i> Histórico de presenças</div><div id="pres-hist"></div></div>
+</div>
+
+<!-- SAFRA -->
+<div id="panel-safra" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-target"></i> Configurar safra</div>
+    <div class="g3">
+      <div class="field"><label>Ano</label><input type="number" id="safra-ano" value="2025"></div>
+      <div class="field"><label>Meta (sacas)</label><input type="number" id="safra-meta"></div>
+      <div class="field"><label>Área (ha)</label><input type="number" id="safra-area" step="0.5"></div>
+    </div>
+    <div class="g2">
+      <div class="field"><label>Início</label><input type="date" id="safra-ini"></div>
+      <div class="field"><label>Previsão fim</label><input type="date" id="safra-fim"></div>
+    </div>
+    <button class="btn btn-p" onclick="salvarSafra()"><i class="ti ti-device-floppy"></i> Salvar</button>
+  </div>
+  <div class="card">
+    <div class="stitle"><i class="ti ti-basket"></i> Produção diária</div>
+    <div class="g3">
+      <div class="field"><label>Data</label><input type="date" id="prod-data"></div>
+      <div class="field"><label>Sacas colhidas</label><input type="number" id="prod-sacas" placeholder="0" step="0.5"></div>
+      <div class="field"><label>Talhão</label><select id="prod-talhao"><option value="">Selecione...</option></select></div>
+    </div>
+    <div class="field"><label>Observação</label><textarea id="prod-obs" placeholder="Turma, condições do dia..."></textarea></div>
+    <button class="btn btn-p" onclick="addProd()"><i class="ti ti-plus"></i> Registrar</button>
+  </div>
+  <div class="card"><div id="safra-prog"></div><div class="divider"></div><div class="stitle"><i class="ti ti-list"></i> Registros de produção</div><div id="prod-lista"></div></div>
+</div>
+
+<!-- TALHÕES -->
+<div id="panel-talhoes" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-map"></i> Cadastrar talhão</div>
+    <div class="g3">
+      <div class="field"><label>Nome</label><input type="text" id="tal-nome" placeholder="ex: Talhão A"></div>
+      <div class="field"><label>Área (ha)</label><input type="number" id="tal-area" placeholder="5.5" step="0.1"></div>
+      <div class="field"><label>Variedade</label><input type="text" id="tal-var" placeholder="ex: Catuaí Amarelo"></div>
+    </div>
+    <div class="g3">
+      <div class="field"><label>Ano de plantio</label><input type="number" id="tal-ano" placeholder="2018"></div>
+      <div class="field"><label>Nº de plantas</label><input type="number" id="tal-plantas" placeholder="2500"></div>
+      <div class="field"><label>Espaçamento</label><input type="text" id="tal-esp" placeholder="3,5 x 0,7m"></div>
+    </div>
+    <div class="field"><label>Observações</label><textarea id="tal-obs" placeholder="Irrigação, histórico, particularidades..."></textarea></div>
+    <button class="btn btn-p" onclick="addTal()"><i class="ti ti-plus"></i> Cadastrar</button>
+  </div>
+  <div class="card"><div class="stitle"><i class="ti ti-list"></i> Talhões cadastrados</div><div id="tal-lista"></div></div>
+</div>
+
+<!-- APLICAÇÕES -->
+<div id="panel-aplicacoes" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-spray"></i> Registrar aplicação</div>
+    <div class="g3">
+      <div class="field"><label>Data</label><input type="date" id="apl-data"></div>
+      <div class="field"><label>Talhão</label><select id="apl-talhao"><option value="">Selecione...</option></select></div>
+      <div class="field"><label>Tipo</label><select id="apl-tipo"><option>Fertilizante foliar</option><option>Fertilizante solo</option><option>Herbicida</option><option>Fungicida</option><option>Inseticida</option><option>Acaricida</option><option>Calagem</option><option>Outro</option></select></div>
+    </div>
+    <div class="g3">
+      <div class="field"><label>Produto</label><input type="text" id="apl-produto" placeholder="Nome do produto"></div>
+      <div class="field"><label>Dose / Quantidade</label><input type="text" id="apl-dose" placeholder="ex: 2L/ha"></div>
+      <div class="field"><label>Responsável</label><input type="text" id="apl-resp" placeholder="Nome"></div>
+    </div>
+    <div class="g2">
+      <div class="field"><label>Equipamento</label><input type="text" id="apl-equip" placeholder="ex: Pulverizador costal"></div>
+      <div class="field"><label>Custo (R$)</label><input type="number" id="apl-custo" placeholder="0.00" step="0.01"></div>
+    </div>
+    <div class="field"><label>Finalidade / Observação</label><textarea id="apl-obs" placeholder="Ex: Controle de ferrugem, adubação de cobertura..."></textarea></div>
+    <button class="btn btn-p" onclick="addApl()"><i class="ti ti-plus"></i> Registrar</button>
+  </div>
+  <div class="card"><div class="stitle"><i class="ti ti-list"></i> Histórico de aplicações</div><div id="apl-lista"></div></div>
+</div>
+
+<!-- QUALIDADE -->
+<div id="panel-qualidade" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-star"></i> Registrar lote / qualidade</div>
+    <div class="g3">
+      <div class="field"><label>Data</label><input type="date" id="qt-data"></div>
+      <div class="field"><label>Talhão / Origem</label><select id="qt-talhao"><option value="">Selecione...</option></select></div>
+      <div class="field"><label>Nº do lote</label><input type="text" id="qt-lote" placeholder="ex: LOTE-001"></div>
+    </div>
+    <div class="g3">
+      <div class="field"><label>Sacas no lote</label><input type="number" id="qt-sacas" placeholder="0" step="0.5"></div>
+      <div class="field"><label>Tipo de café</label><select id="qt-tipo"><option>Cereja descascado</option><option>Natural</option><option>Lavado</option><option>Via húmida</option></select></div>
+      <div class="field"><label>Peneira</label><input type="text" id="qt-peneira" placeholder="ex: 17/18"></div>
+    </div>
+    <div class="g3">
+      <div class="field"><label>Bebida</label><select id="qt-bebida"><option>Estritamente mole</option><option>Mole</option><option>Apenas mole</option><option>Dura</option><option>Riada</option><option>Rio</option></select></div>
+      <div class="field"><label>Score Q-Grade</label><input type="number" id="qt-score" placeholder="84.5" step="0.25" min="0" max="100"></div>
+      <div class="field"><label>Defeitos / 300g</label><input type="number" id="qt-def" placeholder="0"></div>
+    </div>
+    <div class="field"><label>Observações</label><textarea id="qt-obs" placeholder="Notas de prova, destino, certificações..."></textarea></div>
+    <button class="btn btn-p" onclick="addQt()"><i class="ti ti-plus"></i> Registrar lote</button>
+  </div>
+  <div class="card"><div class="stitle"><i class="ti ti-list"></i> Lotes registrados</div><div id="qt-lista"></div></div>
+</div>
+
+<!-- CLIMA -->
+<div id="panel-clima" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-cloud"></i> Registrar clima do dia</div>
+    <div class="g3">
+      <div class="field"><label>Data</label><input type="date" id="cl-data"></div>
+      <div class="field"><label>Condição</label><select id="cl-cond"><option>Ensolarado</option><option>Parcialmente nublado</option><option>Nublado</option><option>Chuva leve</option><option>Chuva forte</option><option>Geada</option><option>Granizo</option><option>Vento forte</option></select></div>
+      <div class="field"><label>Chuva (mm)</label><input type="number" id="cl-chuva" placeholder="0" step="0.1"></div>
+    </div>
+    <div class="g3">
+      <div class="field"><label>Temp. mín (°C)</label><input type="number" id="cl-tmin" placeholder="12" step="0.5"></div>
+      <div class="field"><label>Temp. máx (°C)</label><input type="number" id="cl-tmax" placeholder="28" step="0.5"></div>
+      <div class="field"><label>Umidade (%)</label><input type="number" id="cl-umid" placeholder="65" min="0" max="100"></div>
+    </div>
+    <div class="field"><label>Impacto na lavoura</label><textarea id="cl-obs" placeholder="Ex: chuva forte atrasou colheita, geada no talhão B..."></textarea></div>
+    <button class="btn btn-p" onclick="addClima()"><i class="ti ti-plus"></i> Registrar</button>
+  </div>
+  <div class="card"><div class="stitle"><i class="ti ti-list"></i> Histórico climático</div><div id="cl-lista"></div></div>
+</div>
+
+<!-- EPI -->
+<div id="panel-epi" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-shield"></i> Registrar entrega de EPI</div>
+    <div class="g3">
+      <div class="field"><label>Funcionário</label><select id="epi-func"><option value="">Selecione...</option></select></div>
+      <div class="field"><label>Data de entrega</label><input type="date" id="epi-data"></div>
+      <div class="field"><label>EPI entregue</label><select id="epi-item"><option>Capacete</option><option>Luvas</option><option>Óculos de proteção</option><option>Protetor auricular</option><option>Máscara respiratória</option><option>Avental</option><option>Bota de segurança</option><option>Macacão</option><option>Protetor solar</option><option>Kit completo</option></select></div>
+    </div>
+    <div class="g3">
+      <div class="field"><label>Quantidade</label><input type="number" id="epi-qtd" value="1" min="1"></div>
+      <div class="field"><label>Validade / Troca prevista</label><input type="date" id="epi-val"></div>
+      <div class="field"><label>Foto / Assinatura</label><input type="file" id="epi-foto" accept="image/*"></div>
+    </div>
+    <div class="field"><label>Observação</label><input type="text" id="epi-obs" placeholder="Tamanho, marca, condição..."></div>
+    <button class="btn btn-p" onclick="addEpi()"><i class="ti ti-plus"></i> Registrar entrega</button>
+  </div>
+  <div class="card"><div class="stitle"><i class="ti ti-list"></i> Histórico de entregas</div><div id="epi-lista"></div></div>
+</div>
+
+<!-- ESTOQUE -->
+<div id="panel-estoque" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-package"></i> Cadastrar insumo</div>
+    <div class="g3">
+      <div class="field"><label>Nome</label><input type="text" id="ins-nome" placeholder="ex: Fertilizante NPK"></div>
+      <div class="field"><label>Categoria</label><select id="ins-cat"><option>Fertilizante</option><option>Defensivo</option><option>Combustível</option><option>Peça</option><option>EPI</option><option>Outro</option></select></div>
+      <div class="field"><label>Unidade</label><select id="ins-un"><option>kg</option><option>L</option><option>saco</option><option>caixa</option><option>unidade</option></select></div>
+    </div>
+    <div class="g3">
+      <div class="field"><label>Qtd inicial</label><input type="number" id="ins-qtd" placeholder="0" step="0.1"></div>
+      <div class="field"><label>Mínimo (alerta)</label><input type="number" id="ins-min" placeholder="0" step="0.1"></div>
+      <div class="field"><label>Custo unitário (R$)</label><input type="number" id="ins-custo" placeholder="0.00" step="0.01"></div>
+    </div>
+    <button class="btn btn-p" onclick="addIns()"><i class="ti ti-plus"></i> Cadastrar</button>
+  </div>
+  <div class="card">
+    <div class="stitle"><i class="ti ti-arrows-exchange"></i> Movimentação de estoque</div>
+    <div class="g3">
+      <div class="field"><label>Insumo</label><select id="mov-ins"><option value="">Selecione...</option></select></div>
+      <div class="field"><label>Tipo</label><select id="mov-tipo"><option value="entrada">Entrada (compra)</option><option value="saida">Saída (uso)</option></select></div>
+      <div class="field"><label>Quantidade</label><input type="number" id="mov-qtd" placeholder="0" step="0.1"></div>
+    </div>
+    <div class="g2">
+      <div class="field"><label>Data</label><input type="date" id="mov-data"></div>
+      <div class="field"><label>Obs</label><input type="text" id="mov-obs" placeholder="Opcional"></div>
+    </div>
+    <button class="btn btn-p" onclick="addMov()"><i class="ti ti-plus"></i> Registrar movimentação</button>
+  </div>
+  <div class="card"><div class="stitle"><i class="ti ti-list"></i> Estoque atual</div><div id="est-lista"></div></div>
+  <div class="card"><div class="stitle"><i class="ti ti-history"></i> Movimentações recentes</div><div id="mov-lista"></div></div>
+</div>
+
+<!-- FUNCIONÁRIOS -->
+<div id="panel-funcionarios" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-user-plus"></i> Cadastrar funcionário</div>
+    <div class="g2">
+      <div class="field"><label>Nome completo</label><input type="text" id="f-nome" placeholder="Nome"></div>
+      <div class="field"><label>Função</label><select id="f-fun"><option>Operador de máquina</option><option>Colhedor</option><option>Tratorista</option><option>Irrigador</option><option>Supervisor</option><option>Outro</option></select></div>
+    </div>
+    <div class="g3">
+      <div class="field"><label>Salário (R$)</label><input type="number" id="f-sal" placeholder="0.00" step="0.01"></div>
+      <div class="field"><label>Dia de pagamento</label><input type="number" id="f-dp" placeholder="5" min="1" max="31"></div>
+      <div class="field"><label>Contrato</label><select id="f-ct"><option>CLT</option><option>Diarista</option><option>Safrista</option><option>Parceiro</option></select></div>
+    </div>
+    <div class="g3">
+      <div class="field"><label>Telefone</label><input type="text" id="f-tel" placeholder="(35) 9xxxx-xxxx"></div>
+      <div class="field"><label>Admissão</label><input type="date" id="f-adm"></div>
+      <div class="field"><label>Valor diária (R$)</label><input type="number" id="f-diaria" placeholder="0.00" step="0.01"></div>
+    </div>
+    <button class="btn btn-p" onclick="addFunc()"><i class="ti ti-plus"></i> Cadastrar</button>
+  </div>
+  <div class="card"><div class="stitle"><i class="ti ti-list"></i> Equipe</div><div id="f-lista"></div></div>
+  <div class="card">
+    <div class="stitle"><i class="ti ti-tractor"></i> Máquinas / Tratores</div>
+    <div class="g3" style="margin-bottom:10px">
+      <div class="field"><label>Nome</label><input type="text" id="tr-nome" placeholder="ex: MF 292"></div>
+      <div class="field"><label>Ano</label><input type="number" id="tr-ano" placeholder="2018"></div>
+      <div class="field"><label>Placa / Patrimônio</label><input type="text" id="tr-placa" placeholder="AAA-1234"></div>
+    </div>
+    <button class="btn btn-p btn-sm" onclick="addTr()"><i class="ti ti-plus"></i> Cadastrar máquina</button>
+    <div id="tr-lista" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- ORDEM DE SERVIÇO -->
+<div id="panel-ordemservico" class="panel">
+  <div class="card">
+    <div class="stitle"><i class="ti ti-clipboard-list"></i> Registrar Ordem de Serviço</div>
+    <div class="g3">
+      <div class="field"><label>Data</label><input type="date" id="os-data"></div>
+      <div class="field"><label>Trator / Máquina</label><select id="os-trator"><option value="">Selecione...</option></select></div>
+      <div class="field"><label>Talhão</label><select id="os-talhao"><option value="">Selecione...</option></select></div>
+    </div>
+    <div class="g2">
+      <div class="field"><label>Serviço realizado</label>
+        <select id="os-servico">
+          <option>Colheita</option>
+          <option>Roçagem</option>
+          <option>Pulverização</option>
+          <option>Adubação</option>
+          <option>Irrigação</option>
+          <option>Subsolagem</option>
+          <option>Gradagem</option>
+          <option>Capina</option>
+          <option>Poda</option>
+          <option>Transporte</option>
+          <option>Outro</option>
+        </select>
+      </div>
+      <div class="field"><label>Quantidade produzida</label><input type="text" id="os-qtd" placeholder="ex: 50 sacas, 2 ha, 300 kg"></div>
+    </div>
+    <div class="g3">
+      <div class="field"><label>Horário inicial</label><input type="time" id="os-hinicio"></div>
+      <div class="field"><label>Horário final</label><input type="time" id="os-hfim"></div>
+      <div class="field"><label>Diesel consumido (L)</label><input type="number" id="os-diesel" placeholder="0" step="0.1"></div>
+    </div>
+    <div class="g2">
+      <div class="field"><label>Operador</label><select id="os-operador"><option value="">Selecione...</option></select></div>
+      <div class="field"><label>Responsável / Supervisor</label><select id="os-responsavel"><option value="">Selecione...</option></select></div>
+    </div>
+    <div class="field"><label>Observações</label><textarea id="os-obs" placeholder="Detalhes adicionais do serviço..."></textarea></div>
+    <button class="btn btn-p" onclick="addOS()"><i class="ti ti-plus"></i> Registrar O.S.</button>
+  </div>
+  <div class="card">
+    <div class="stitle"><i class="ti ti-list"></i> Ordens de Serviço registradas</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <select id="os-filtro-servico" onchange="rOS()" style="font-size:12px"><option value="">Todos os serviços</option><option>Colheita</option><option>Roçagem</option><option>Pulverização</option><option>Adubação</option><option>Irrigação</option><option>Subsolagem</option><option>Gradagem</option><option>Capina</option><option>Poda</option><option>Transporte</option><option>Outro</option></select>
+      <select id="os-filtro-trator" onchange="rOS()" style="font-size:12px"><option value="">Todas as máquinas</option></select>
+    </div>
+    <div id="os-resumo" style="margin-bottom:12px"></div>
+    <div id="os-lista"></div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const td=()=>new Date().toISOString().split('T')[0];
+const fmt=d=>{if(!d)return'-';const[y,m,dd]=d.split('-');return`${dd}/${m}/${y}`};
+const money=v=>'R$ '+parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const n=id=>parseFloat(document.getElementById(id)?.value)||0;
+const v=id=>document.getElementById(id)?.value.trim()||'';
+const sv=(id,val)=>{const e=document.getElementById(id);if(e)e.value=val};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const gbg=g=>g==='Alta'?'br':g==='Média'?'ba':'bg';
+
+const DEF={funcionarios:[],tratores:[],combustivel:[],problemas:[],ganhos:[],presencas:{},producao:[],safra:null,insumos:[],movimentacoes:[],financeiro:[],manutencao:[],talhoes:[],aplicacoes:[],qualidade:[],clima:[],epi:[],ordemservico:[]};
+let D={...DEF};
+try{const s=localStorage.getItem('fazenda_v4');if(s)D=Object.assign({...DEF},...[JSON.parse(s)])}catch(e){}
+const save=()=>{try{localStorage.setItem('fazenda_v4',JSON.stringify(D))}catch(e){}};
+
+document.getElementById('ddisp').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+['comb-data','prob-data','g-data','pres-data','prod-data','mov-data','f-adm','safra-ini','safra-fim','man-data','apl-data','qt-data','cl-data','epi-data','epi-val','fin-data','fin-venc','os-data'].forEach(id=>sv(id,td()));
+if(D.safra){sv('safra-ano',D.safra.ano);sv('safra-meta',D.safra.meta);sv('safra-area',D.safra.area);sv('safra-ini',D.safra.inicio);sv('safra-fim',D.safra.fim)}
+sv('rel-mes',String(new Date().getMonth()+1).padStart(2,'0'));
+sv('rel-ano',new Date().getFullYear());
+sv('folha-mes',String(new Date().getMonth()+1).padStart(2,'0'));
+
+function rSels(){
+  document.querySelectorAll('#comb-tr,#man-tr').forEach(s=>{if(!s)return;s.innerHTML='<option value="">Selecione...</option>';D.tratores.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.nome;s.appendChild(o)})});
+  ['apl-talhao','prod-talhao','qt-talhao'].forEach(id=>{const s=document.getElementById(id);if(!s)return;s.innerHTML='<option value="">Selecione...</option>';D.talhoes.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.nome;s.appendChild(o)})});
+  const mi=document.getElementById('mov-ins');if(mi){mi.innerHTML='<option value="">Selecione...</option>';D.insumos.forEach(i=>{const o=document.createElement('option');o.value=i.id;o.textContent=i.nome+' ('+i.un+')';mi.appendChild(o)})}
+  const ef=document.getElementById('epi-func');if(ef){ef.innerHTML='<option value="">Selecione...</option>';D.funcionarios.forEach(f=>{const o=document.createElement('option');o.value=f.id;o.textContent=f.nome;ef.appendChild(o)})}
+  // OS selects
+  ['os-operador','os-responsavel'].forEach(id=>{const s=document.getElementById(id);if(!s)return;s.innerHTML='<option value="">Selecione...</option>';D.funcionarios.forEach(f=>{const o=document.createElement('option');o.value=f.id;o.textContent=f.nome;s.appendChild(o)})});
+  const ostr=document.getElementById('os-trator');if(ostr){ostr.innerHTML='<option value="">Selecione...</option>';D.tratores.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.nome;ostr.appendChild(o)})}
+  const ostal=document.getElementById('os-talhao');if(ostal){ostal.innerHTML='<option value="">Selecione...</option>';D.talhoes.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.nome;ostal.appendChild(o)})}
+  const osft=document.getElementById('os-filtro-trator');if(osft){osft.innerHTML='<option value="">Todas as máquinas</option>';D.tratores.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.nome;osft.appendChild(o)})}
+}
+
+function st(t){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelector(`.tab[onclick="st('${t}')"]`).classList.add('active');
+  document.getElementById('panel-'+t).classList.add('active');
+  rSels();
+  const map={dashboard:rDash,financeiro:rFin,combustivel:rComb,manutencao:rMan,problemas:rProb,ganhos:rGanho,presenca:rPresHist,safra:()=>{rSafraProg();rProd()},talhoes:rTal,aplicacoes:rApl,qualidade:rQt,clima:rClima,epi:rEpi,estoque:()=>{rEst();rMov()},funcionarios:()=>{rFunc();rTr()},relatorio:()=>{},ordemservico:rOS};
+  map[t]?.();
+}
+
+function addTr(){const nome=v('tr-nome');if(!nome)return alert('Informe o nome');D.tratores.push({id:uid(),nome,ano:v('tr-ano'),placa:v('tr-placa')});save();rTr();rSels();sv('tr-nome','');sv('tr-ano','');sv('tr-placa','')}
+function rTr(){const el=document.getElementById('tr-lista');if(!D.tratores.length){el.innerHTML='<p class="empty">Nenhuma máquina cadastrada.</p>';return}el.innerHTML='<div style="display:flex;flex-direction:column;gap:6px">'+D.tratores.map(t=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0ea"><strong>${t.nome}</strong><span class="meta">${t.ano||''} ${t.placa?'· '+t.placa:''}</span><button class="btn btn-sm btn-d" onclick="delTr('${t.id}')"><i class="ti ti-trash"></i></button></div>`).join('')+'</div>'}
+function delTr(id){D.tratores=D.tratores.filter(x=>x.id!==id);save();rTr();rSels()}
+
+function addFunc(){const nome=v('f-nome');if(!nome)return alert('Informe o nome');D.funcionarios.push({id:uid(),nome,funcao:v('f-fun'),salario:n('f-sal'),diaPag:n('f-dp'),contrato:v('f-ct'),tel:v('f-tel'),admissao:v('f-adm'),diaria:n('f-diaria')});save();rFunc();rSels();sv('f-nome','');sv('f-sal','');sv('f-dp','');sv('f-tel','');sv('f-diaria','')}
+function rFunc(){const el=document.getElementById('f-lista');if(!D.funcionarios.length){el.innerHTML='<p class="empty">Nenhum funcionário cadastrado.</p>';return}el.innerHTML=`<table><thead><tr><th>Nome</th><th>Função</th><th>Contrato</th><th>Salário</th><th>Pagamento</th><th>Tel</th><th></th></tr></thead><tbody>`+D.funcionarios.map(f=>`<tr><td><strong>${f.nome}</strong></td><td>${f.funcao}</td><td><span class="badge bb">${f.contrato}</span></td><td>${money(f.salario)}</td><td>Dia ${f.diaPag||'-'}</td><td>${f.tel||'-'}</td><td><button class="btn btn-sm btn-d" onclick="delFunc('${f.id}')"><i class="ti ti-trash"></i></button></td></tr>`).join('')+'</tbody></table>'}
+function delFunc(id){if(!confirm('Remover funcionário?'))return;D.funcionarios=D.funcionarios.filter(x=>x.id!==id);save();rFunc()}
+
+function addFin(){const val=n('fin-val'),dt=v('fin-data');if(!val||!dt)return alert('Preencha data e valor');D.financeiro.push({id:uid(),data:dt,tipo:v('fin-tipo'),categoria:v('fin-cat'),valor:val,vencimento:v('fin-venc'),status:v('fin-status'),desc:v('fin-desc')});save();rFin();sv('fin-val','');sv('fin-desc','')}
+function rFin(){const el=document.getElementById('fin-lista');const el2=document.getElementById('fin-resumo');const ft=v('fin-filtro-tipo'),fs=v('fin-filtro-status');let s=[...D.financeiro].filter(x=>(ft?x.tipo===ft:true)&&(fs?x.status===fs:true)).sort((a,b)=>b.data.localeCompare(a.data));const tRec=D.financeiro.filter(x=>x.tipo==='receita'&&x.status==='pago').reduce((a,x)=>a+x.valor,0);const tDesp=D.financeiro.filter(x=>x.tipo==='despesa'&&x.status==='pago').reduce((a,x)=>a+x.valor,0);const tPend=D.financeiro.filter(x=>x.status==='pendente').reduce((a,x)=>a+x.valor,0);const res=tRec-tDesp;el2.innerHTML=`<div class="g4"><div class="scard"><div class="sval" style="color:var(--g)">${money(tRec)}</div><div class="slbl">Receitas pagas</div></div><div class="scard"><div class="sval" style="color:var(--r)">${money(tDesp)}</div><div class="slbl">Despesas pagas</div></div><div class="scard"><div class="sval" style="color:${res>=0?'var(--g)':'var(--r)'}">${money(res)}</div><div class="slbl">Resultado</div></div><div class="scard"><div class="sval" style="color:var(--a)">${money(tPend)}</div><div class="slbl">Pendentes</div></div></div>`;if(!s.length){el.innerHTML='<p class="empty">Nenhum lançamento.</p>';return}el.innerHTML=`<table><thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Valor</th><th>Status</th><th>Descrição</th><th></th></tr></thead><tbody>`+s.map(f=>`<tr><td>${fmt(f.data)}</td><td><span class="badge ${f.tipo==='receita'?'bg':'br'}">${f.tipo}</span></td><td>${f.categoria}</td><td style="color:${f.tipo==='receita'?'var(--g)':'var(--r)'};font-weight:600">${money(f.valor)}</td><td><span class="badge ${f.status==='pago'?'bg':'ba'}">${f.status}</span></td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.desc||'-'}</td><td><button class="btn btn-sm btn-d" onclick="delFin('${f.id}')"><i class="ti ti-trash"></i></button></td></tr>`).join('')+'</tbody></table>'}
+function delFin(id){D.financeiro=D.financeiro.filter(x=>x.id!==id);save();rFin()}
+
+function addComb(){const l=n('comb-l'),tr=v('comb-tr'),dt=v('comb-data');if(!l||!tr||!dt)return alert('Preencha data, máquina e litros');const nome=D.tratores.find(t=>t.id===tr)?.nome||tr;D.combustivel.push({id:uid(),data:dt,trator:tr,tratorNome:nome,litros:l,horimetro:n('comb-h'),valor:n('comb-v'),obs:v('comb-obs')});save();rComb();sv('comb-l','');sv('comb-h','');sv('comb-v','');sv('comb-obs','')}
+function rComb(){const el=document.getElementById('comb-lista');const s=[...D.combustivel].sort((a,b)=>b.data.localeCompare(a.data));if(!s.length){el.innerHTML='<p class="empty">Nenhum abastecimento registrado.</p>';return}const tL=s.reduce((x,c)=>x+c.litros,0);const tR=s.reduce((x,c)=>x+(c.litros*c.valor),0);el.innerHTML=`<div class="g2" style="margin-bottom:12px"><div class="scard"><div class="sval">${tL.toFixed(1)} L</div><div class="slbl">Total abastecido</div></div><div class="scard"><div class="sval">${money(tR)}</div><div class="slbl">Custo total</div></div></div><table><thead><tr><th>Data</th><th>Máquina</th><th>Litros</th><th>Horímetro</th><th>Custo</th><th>Obs</th><th></th></tr></thead><tbody>`+s.map(c=>`<tr><td>${fmt(c.data)}</td><td>${c.tratorNome}</td><td>${c.litros} L</td><td>${c.horimetro?c.horimetro+'h':'-'}</td><td>${c.valor?money(c.litros*c.valor):'-'}</td><td class="meta">${c.obs||'-'}</td><td><button class="btn btn-sm btn-d" onclick="delComb('${c.id}')"><i class="ti ti-trash"></i></button></td></tr>`).join('')+'</tbody></table>'}
+function delComb(id){D.combustivel=D.combustivel.filter(x=>x.id!==id);save();rComb()}
+
+function addMan(){const tr=v('man-tr'),dt=v('man-data');if(!tr||!dt)return alert('Selecione máquina e data');const nome=D.tratores.find(t=>t.id===tr)?.nome||tr;D.manutencao.push({id:uid(),data:dt,trator:tr,tratorNome:nome,tipo:v('man-tipo'),status:v('man-status'),horimetro:n('man-hor'),custo:n('man-custo'),prox:v('man-prox'),responsavel:v('man-resp'),obs:v('man-obs')});save();rMan();sv('man-hor','');sv('man-custo','');sv('man-prox','');sv('man-resp','');sv('man-obs','')}
+function rMan(){const el=document.getElementById('man-lista');const s=[...D.manutencao].sort((a,b)=>b.data.localeCompare(a.data));if(!s.length){el.innerHTML='<p class="empty">Nenhuma manutenção registrada.</p>';return}el.innerHTML=s.map(m=>`<div class="section-group"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div style="flex:1"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:4px"><strong>${m.tratorNome}</strong><span class="badge ${m.status==='realizado'?'bg':'ba'}">${m.status}</span><span class="badge bp">${m.tipo}</span><span class="meta">${fmt(m.data)}</span></div>${m.custo?`<p class="meta">Custo: ${money(m.custo)}</p>`:''}${m.prox?`<p class="meta">Próxima: ${m.prox}</p>`:''}${m.responsavel?`<p class="meta">Responsável: ${m.responsavel}</p>`:''}${m.obs?`<p style="font-size:12px;margin-top:4px;color:#444">${m.obs}</p>`:''}</div><button class="btn btn-sm btn-d" onclick="delMan('${m.id}')"><i class="ti ti-trash"></i></button></div></div>`).join('')}
+function delMan(id){D.manutencao=D.manutencao.filter(x=>x.id!==id);save();rMan()}
+
+function addProb(){const desc=v('prob-desc'),dt=v('prob-data');if(!desc||!dt)return alert('Preencha data e descrição');const fi=document.getElementById('prob-foto');const e={id:uid(),data:dt,categoria:v('prob-cat'),desc,gravidade:v('prob-grav'),custo:n('prob-custo'),solucao:v('prob-sol'),foto:null};if(fi.files&&fi.files[0]){const r=new FileReader();r.onload=ev=>{e.foto=ev.target.result;D.problemas.push(e);save();rProb()};r.readAsDataURL(fi.files[0])}else{D.problemas.push(e);save();rProb()}sv('prob-desc','');sv('prob-custo','');sv('prob-sol','');fi.value=''}
+function rProb(){const el=document.getElementById('prob-lista');const s=[...D.problemas].sort((a,b)=>b.data.localeCompare(a.data));if(!s.length){el.innerHTML='<p class="empty">Nenhum problema registrado.</p>';return}el.innerHTML=s.map(p=>`<div class="section-group" style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;gap:8px"><div style="flex:1"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:4px"><strong>${p.categoria}</strong><span class="badge ${gbg(p.gravidade)}">${p.gravidade}</span><span class="meta">${fmt(p.data)}</span>${p.custo?`<span class="meta">Custo: ${money(p.custo)}</span>`:''}</div><p style="font-size:13px">${p.desc}</p>${p.solucao?`<p class="meta" style="margin-top:4px"><i class="ti ti-check"></i> ${p.solucao}</p>`:'<span class="badge ba" style="margin-top:4px;display:inline-block">Pendente</span>'}${p.foto?`<img src="${p.foto}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e0e0d8;margin-top:6px;cursor:pointer" onclick="this.style.width=this.style.width==='60px'?'100%':'60px'" alt="foto do problema">`:''}</div><button class="btn btn-sm btn-d" onclick="delProb('${p.id}')"><i class="ti ti-trash"></i></button></div></div>`).join('')}
+function delProb(id){D.problemas=D.problemas.filter(x=>x.id!==id);save();rProb()}
+
+function addGanho(){const val=n('g-val'),dt=v('g-data');if(!val||!dt)return alert('Preencha data e valor');D.ganhos.push({id:uid(),data:dt,categoria:v('g-cat'),valor:val,sacas:n('g-sacas'),precoBag:n('g-ps'),desc:v('g-desc')});save();rGanho();sv('g-val','');sv('g-sacas','');sv('g-ps','');sv('g-desc','')}
+function rGanho(){const el=document.getElementById('g-lista');const el2=document.getElementById('g-res');const s=[...D.ganhos].sort((a,b)=>b.data.localeCompare(a.data));const tot=s.reduce((x,g)=>x+g.valor,0);const sacs=s.reduce((x,g)=>x+g.sacas,0);el2.innerHTML=`<div class="g3"><div class="scard"><div class="sval" style="color:var(--g)">${money(tot)}</div><div class="slbl">Total de ganhos</div></div><div class="scard"><div class="sval">${sacs.toFixed(1)}</div><div class="slbl">Sacas vendidas</div></div><div class="scard"><div class="sval">${s.length}</div><div class="slbl">Registros</div></div></div>`;if(!s.length){el.innerHTML='<p class="empty">Nenhum ganho registrado.</p>';return}el.innerHTML=`<table><thead><tr><th>Data</th><th>Categoria</th><th>Sacas</th><th>Valor</th><th>Descrição</th><th></th></tr></thead><tbody>`+s.map(g=>`<tr><td>${fmt(g.data)}</td><td>${g.categoria}</td><td>${g.sacas||'-'}</td><td style="color:var(--g);font-weight:600">${money(g.valor)}</td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.desc||'-'}</td><td><button class="btn btn-sm btn-d" onclick="delGanho('${g.id}')"><i class="ti ti-trash"></i></button></td></tr>`).join('')+'</tbody></table>'}
+function delGanho(id){D.ganhos=D.ganhos.filter(x=>x.id!==id);save();rGanho()}
+
+function carregarPres(){const dt=v('pres-data');if(!dt)return alert('Selecione a data');const el=document.getElementById('pres-lista');const btn=document.getElementById('pres-btn');if(!D.funcionarios.length){el.innerHTML='<p class="empty">Cadastre funcionários primeiro na aba Funcionários.</p>';btn.style.display='none';return}if(!D.presencas[dt])D.presencas[dt]=Object.fromEntries(D.funcionarios.map(f=>[f.id,'presente']));const ex=D.presencas[dt];el.innerHTML='<div style="display:flex;flex-direction:column;gap:6px">'+D.funcionarios.map(f=>{const s=ex[f.id]||'presente';return`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:8px;border:1px solid #e0e0d8;background:#fafaf6"><div><strong>${f.nome}</strong> <span class="meta">${f.funcao}</span></div><div style="display:flex;gap:5px"><span class="chip ${s==='presente'?'present':''}" onclick="setSt('${dt}','${f.id}','presente',this)"><i class="ti ti-check"></i> Presente</span><span class="chip ${s==='ausente'?'absent':''}" onclick="setSt('${dt}','${f.id}','ausente',this)"><i class="ti ti-x"></i> Ausente</span><span class="chip ${s==='meio'?'present':''}" onclick="setSt('${dt}','${f.id}','meio',this)">½ Meio dia</span></div></div>`}).join('')+'</div>';btn.style.display='block'}
+function setSt(dt,fid,s,el){if(!D.presencas[dt])D.presencas[dt]={};D.presencas[dt][fid]=s;el.closest('div[style*="border"]').querySelectorAll('.chip').forEach(c=>c.classList.remove('present','absent'));el.classList.add(s==='ausente'?'absent':'present')}
+function salvarPres(){const dt=v('pres-data');save();rPresHist();const tmp=document.createElement('div');tmp.className='alert-box al-s';tmp.innerHTML='<i class="ti ti-check"></i> Presença do dia '+fmt(dt)+' salva com sucesso!';document.getElementById('pres-lista').before(tmp);setTimeout(()=>tmp.remove(),3000)}
+function calcFolha(){const mes=v('folha-mes'),ano=v('folha-ano');const pref=`${ano}-${mes}`;const el=document.getElementById('folha-res');if(!D.funcionarios.length){el.innerHTML='<p class="empty">Sem funcionários cadastrados.</p>';return}const rows=D.funcionarios.map(f=>{const dias=Object.entries(D.presencas).filter(([d])=>d.startsWith(pref)).reduce((s,[,p])=>{const vv=p[f.id]||'ausente';return s+(vv==='presente'?1:vv==='meio'?0.5:0)},0);const salBase=f.contrato==='Diarista'?(f.diaria||0)*dias:f.salario||0;return{nome:f.nome,funcao:f.funcao,contrato:f.contrato,dias:dias.toFixed(1),salBase}});const total=rows.reduce((s,r)=>s+r.salBase,0);const nomes=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];el.innerHTML=`<div class="stitle" style="margin-bottom:10px"><i class="ti ti-file-dollar"></i> Folha — ${nomes[parseInt(mes)-1]} / ${ano}</div><table><thead><tr><th>Funcionário</th><th>Contrato</th><th>Dias trabalhados</th><th>Valor a pagar</th></tr></thead><tbody>`+rows.map(r=>`<tr><td><strong>${r.nome}</strong><br><span class="meta">${r.funcao}</span></td><td><span class="badge bb">${r.contrato}</span></td><td>${r.dias}</td><td style="font-weight:600;color:var(--g)">${money(r.salBase)}</td></tr>`).join('')+`</tbody><tfoot><tr style="background:#f8f8f4"><td colspan="3" style="font-weight:600;padding:8px 10px">Total da folha</td><td style="font-weight:700;color:var(--g);padding:8px 10px;font-size:15px">${money(total)}</td></tr></tfoot></table>`}
+function rPresHist(){const el=document.getElementById('pres-hist');const dts=Object.keys(D.presencas).sort((a,b)=>b.localeCompare(a)).slice(0,10);if(!dts.length){el.innerHTML='<p class="empty">Nenhuma presença registrada.</p>';return}el.innerHTML='<div style="display:flex;flex-direction:column;gap:6px">'+dts.map(dt=>{const p=D.presencas[dt];const tot=Object.keys(p).length;const pres=Object.values(p).filter(v=>v!=='ausente').length;return`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f8f8f4;border-radius:8px;border:1px solid #e8e8e0"><strong>${fmt(dt)}</strong><div style="display:flex;gap:6px"><span class="badge bg">${pres} presentes</span>${tot-pres?`<span class="badge br">${tot-pres} ausentes</span>`:''}</div></div>`}).join('')+'</div>'}
+
+function salvarSafra(){const meta=n('safra-meta'),ano=v('safra-ano');if(!meta||!ano)return alert('Preencha ano e meta');D.safra={ano,meta,area:n('safra-area'),inicio:v('safra-ini'),fim:v('safra-fim')};save();rSafraProg()}
+function addProd(){const sacas=n('prod-sacas'),dt=v('prod-data');if(!sacas||!dt)return alert('Preencha data e sacas');const tid=v('prod-talhao');const tNome=D.talhoes.find(t=>t.id===tid)?.nome||'Geral';D.producao.push({id:uid(),data:dt,sacas,talhao:tid,talhaoNome:tNome,obs:v('prod-obs')});save();rSafraProg();rProd();sv('prod-sacas','');sv('prod-obs','')}
+function rSafraProg(){const el=document.getElementById('safra-prog');if(!D.safra){el.innerHTML='<p class="empty">Configure a meta da safra acima.</p>';return}const tot=D.producao.reduce((s,x)=>s+x.sacas,0);const pct=Math.min(100,Math.round(tot/D.safra.meta*100));const rest=Math.max(0,D.safra.meta-tot);el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px"><span style="font-weight:600">Safra ${D.safra.ano}</span><span class="meta">${tot.toFixed(1)} / ${D.safra.meta} sacas</span></div><div class="pbar"><div class="pfill" style="width:${pct}%"></div></div><div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:13px;color:var(--g);font-weight:600">${pct}% concluído</span><span class="meta">${rest.toFixed(1)} sacas restantes</span></div><div class="g3" style="margin-top:14px"><div class="scard"><div class="sval">${tot.toFixed(1)}</div><div class="slbl">Sacas colhidas</div></div><div class="scard"><div class="sval">${D.safra.area||'-'} ha</div><div class="slbl">Área plantada</div></div><div class="scard"><div class="sval">${D.safra.area&&tot?(tot/D.safra.area).toFixed(1):'-'}</div><div class="slbl">sc / ha atual</div></div></div>`}
+function rProd(){const el=document.getElementById('prod-lista');const s=[...D.producao].sort((a,b)=>b.data.localeCompare(a.data));if(!s.length){el.innerHTML='<p class="empty">Nenhuma produção registrada.</p>';return}el.innerHTML=`<table><thead><tr><th>Data</th><th>Sacas</th><th>Talhão</th><th>Observação</th><th></th></tr></thead><tbody>`+s.map(p=>`<tr><td>${fmt(p.data)}</td><td><strong>${p.sacas}</strong></td><td>${p.talhaoNome||'-'}</td><td class="meta">${p.obs||'-'}</td><td><button class="btn btn-sm btn-d" onclick="delProd('${p.id}')"><i class="ti ti-trash"></i></button></td></tr>`).join('')+'</tbody></table>'}
+function delProd(id){D.producao=D.producao.filter(x=>x.id!==id);save();rSafraProg();rProd()}
+
+function addTal(){const nome=v('tal-nome');if(!nome)return alert('Informe o nome do talhão');D.talhoes.push({id:uid(),nome,area:n('tal-area'),variedade:v('tal-var'),ano:v('tal-ano'),plantas:n('tal-plantas'),espacamento:v('tal-esp'),obs:v('tal-obs')});save();rTal();rSels();sv('tal-nome','');sv('tal-area','');sv('tal-var','');sv('tal-ano','');sv('tal-plantas','');sv('tal-esp','');sv('tal-obs','')}
+function rTal(){const el=document.getElementById('tal-lista');if(!D.talhoes.length){el.innerHTML='<p class="empty">Nenhum talhão cadastrado.</p>';return}el.innerHTML=`<table><thead><tr><th>Nome</th><th>Área</th><th>Variedade</th><th>Plantio</th><th>Plantas</th><th>Espaçamento</th><th></th></tr></thead><tbody>`+D.talhoes.map(t=>`<tr><td><strong>${t.nome}</strong></td><td>${t.area?t.area+' ha':'-'}</td><td>${t.variedade||'-'}</td><td>${t.ano||'-'}</td><td>${t.plantas||'-'}</td><td>${t.espacamento||'-'}</td><td><button class="btn btn-sm btn-d" onclick="delTal('${t.id}')"><i class="ti ti-trash"></i></button></td></tr>`).join('')+'</tbody></table>'}
+function delTal(id){D.talhoes=D.talhoes.filter(x=>x.id!==id);save();rTal();rSels()}
+
+function addApl(){const prod=v('apl-produto'),dt=v('apl-data');if(!prod||!dt)return alert('Preencha data e produto');const tid=v('apl-talhao');const tNome=D.talhoes.find(t=>t.id===tid)?.nome||'Geral';D.aplicacoes.push({id:uid(),data:dt,talhao:tid,talhaoNome:tNome,tipo:v('apl-tipo'),produto:prod,dose:v('apl-dose'),responsavel:v('apl-resp'),equipamento:v('apl-equip'),custo:n('apl-custo'),obs:v('apl-obs')});save();rApl();sv('apl-produto','');sv('apl-dose','');sv('apl-resp','');sv('apl-equip','');sv('apl-custo','');sv('apl-obs','')}
+function rApl(){const el=document.getElementById('apl-lista');const s=[...D.aplicacoes].sort((a,b)=>b.data.localeCompare(a.data));if(!s.length){el.innerHTML='<p class="empty">Nenhuma aplicação registrada.</p>';return}el.innerHTML=`<table><thead><tr><th>Data</th><th>Talhão</th><th>Tipo</th><th>Produto</th><th>Dose</th><th>Responsável</th><th>Custo</th><th></th></tr></thead><tbody>`+s.map(a=>`<tr><td>${fmt(a.data)}</td><td>${a.talhaoNome}</td><td><span class="badge bb">${a.tipo}</span></td><td><strong>${a.produto}</strong></td><td>${a.dose||'-'}</td><td>${a.responsavel||'-'}</td><td>${a.custo?money(a.custo):'-'}</td><td><button class="btn btn-sm btn-d" onclick="delApl('${a.id}')"><i class="ti ti-trash"></i></button></td></tr>`).join('')+'</tbody></table>'}
+function delApl(id){D.aplicacoes=D.aplicacoes.filter(x=>x.id!==id);save();rApl()}
+
+function addQt(){const lote=v('qt-lote'),dt=v('qt-data');if(!lote||!dt)return alert('Preencha data e número do lote');const tid=v('qt-talhao');const tNome=D.talhoes.find(t=>t.id===tid)?.nome||'Geral';D.qualidade.push({id:uid(),data:dt,talhao:tid,talhaoNome:tNome,lote,sacas:n('qt-sacas'),tipo:v('qt-tipo'),peneira:v('qt-peneira'),bebida:v('qt-bebida'),score:n('qt-score'),defeitos:n('qt-def'),obs:v('qt-obs')});save();rQt();sv('qt-lote','');sv('qt-sacas','');sv('qt-peneira','');sv('qt-score','');sv('qt-def','');sv('qt-obs','')}
+function rQt(){const el=document.getElementById('qt-lista');const s=[...D.qualidade].sort((a,b)=>b.data.localeCompare(a.data));if(!s.length){el.innerHTML='<p class="empty">Nenhum lote registrado.</p>';return}el.innerHTML=`<table><thead><tr><th>Data</th><th>Lote</th><th>Talhão</th><th>Tipo</th><th>Bebida</th><th>Peneira</th><th>Score</th><th>Sacas</th><th></th></tr></thead><tbody>`+s.map(q=>`<tr><td>${fmt(q.data)}</td><td><strong>${q.lote}</strong></td><td>${q.talhaoNome}</td><td>${q.tipo}</td><td>${q.bebida}</td><td>${q.peneira||'-'}</td><td>${q.score||'-'}</td><td>${q.sacas}</td><td><button class="btn btn-sm btn-d" onclick="delQt('${q.id}')"><i class="ti ti-trash"></i></button></td></tr>`).join('')+'</tbody></table>'}
+function delQt(id){D.qualidade=D.qualidade.filter(x=>x.id!==id);save();rQt()}
+
+function addClima(){const dt=v('cl-data');if(!dt)return alert('Selecione a data');D.clima.push({id:uid(),data:dt,condicao:v('cl-cond'),chuva:n('cl-chuva'),tmin:n('cl-tmin'),tmax:n('cl-tmax'),umidade:n('cl-umid'),obs:v('cl-obs')});save();rClima();sv('cl-chuva','');sv('cl-tmin','');sv('cl-tmax','');sv('cl-umid','');sv('cl-obs','')}
+function rClima(){const el=document.getElementById('cl-lista');const s=[...D.clima].sort((a,b)=>b.data.localeCompare(a.data));if(!s.length){el.innerHTML='<p class="empty">Nenhum registro climático.</p>';return}const cond={Ensolarado:'bg',Geada:'br',Granizo:'br','Chuva forte':'ba','Vento forte':'ba'};el.innerHTML=`<table><thead><tr><th>Data</th><th>Condição</th><th>Chuva</th><th>Temp Mín/Máx</th><th>Umidade</th><th>Impacto</th><th></th></tr></thead><tbody>`+s.map(c=>`<tr><td>${fmt(c.data)}</td><td><span class="badge ${cond[c.condicao]||'bb'}">${c.condicao}</span></td><td>${c.chuva?c.chuva+'mm':'-'}</td><td>${c.tmin?c.tmin+'° / '+c.tmax+'°':'-'}</td><td>${c.umidade?c.umidade+'%':'-'}</td><td class="meta" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.obs||'-'}</td><td><button class="btn btn-sm btn-d" onclick="delClima('${c.id}')"><i class="ti ti-trash"></i></button></td></tr>`).join('')+'</tbody></table>'}
+function delClima(id){D.clima=D.clima.filter(x=>x.id!==id);save();rClima()}
+
+function addEpi(){const fid=v('epi-func'),item=v('epi-item'),dt=v('epi-data');if(!fid||!dt)return alert('Selecione funcionário e data');const fNome=D.funcionarios.find(f=>f.id===fid)?.nome||fid;const fi=document.getElementById('epi-foto');const e={id:uid(),data:dt,funcionario:fid,funcionarioNome:fNome,item,quantidade:n('epi-qtd'),validade:v('epi-val'),obs:v('epi-obs'),foto:null};if(fi.files&&fi.files[0]){const r=new FileReader();r.onload=ev=>{e.foto=ev.target.result;D.epi.push(e);save();rEpi()};r.readAsDataURL(fi.files[0])}else{D.epi.push(e);save();rEpi()}sv('epi-obs','');fi.value=''}
+function rEpi(){const el=document.getElementById('epi-lista');const s=[...D.epi].sort((a,b)=>b.data.localeCompare(a.data));if(!s.length){el.innerHTML='<p class="empty">Nenhuma entrega registrada.</p>';return}el.innerHTML=`<table><thead><tr><th>Data</th><th>Funcionário</th><th>EPI</th><th>Qtd</th><th>Validade</th><th>Foto</th><th></th></tr></thead><tbody>`+s.map(e=>`<tr><td>${fmt(e.data)}</td><td><strong>${e.funcionarioNome}</strong></td><td><span class="badge bp">${e.item}</span></td><td>${e.quantidade}</td><td>${fmt(e.validade)}</td><td>${e.foto?`<img src="${e.foto}" style="width:40px;height:40px;object-fit:cover;border-radius:5px;cursor:pointer;border:1px solid #e0e0d8" onclick="this.style.width=this.style.width==='40px'?'150px':'40px'" alt="assinatura">`:'-'}</td><td><button class="btn btn-sm btn-d" onclick="delEpi('${e.id}')"><i class="ti ti-trash"></i></button></td></tr>`).join('')+'</tbody></table>'}
+function delEpi(id){D.epi=D.epi.filter(x=>x.id!==id);save();rEpi()}
+
+function addIns(){const nome=v('ins-nome');if(!nome)return alert('Informe o nome do insumo');D.insumos.push({id:uid(),nome,categoria:v('ins-cat'),un:v('ins-un'),qtd:n('ins-qtd'),minimo:n('ins-min'),custo:n('ins-custo')});save();rEst();rSels();sv('ins-nome','');sv('ins-qtd','');sv('ins-min','');sv('ins-custo','')}
+function addMov(){const iid=v('mov-ins'),qtd=n('mov-qtd'),tipo=v('mov-tipo'),dt=v('mov-data');if(!iid||!qtd)return alert('Selecione insumo e quantidade');const ins=D.insumos.find(x=>x.id===iid);if(!ins)return;if(tipo==='saida'&&qtd>ins.qtd)return alert('Quantidade insuficiente em estoque!');ins.qtd=tipo==='entrada'?ins.qtd+qtd:ins.qtd-qtd;D.movimentacoes.push({id:uid(),data:dt,insumoId:iid,insumoNome:ins.nome,tipo,qtd,obs:v('mov-obs')});save();rEst();rMov();sv('mov-qtd','');sv('mov-obs','')}
+function rEst(){const el=document.getElementById('est-lista');if(!D.insumos.length){el.innerHTML='<p class="empty">Nenhum insumo cadastrado.</p>';return}el.innerHTML=`<table><thead><tr><th>Insumo</th><th>Categoria</th><th>Qtd atual</th><th>Mínimo</th><th>Valor em estoque</th><th></th></tr></thead><tbody>`+D.insumos.map(i=>{const low=i.qtd<=i.minimo;return`<tr><td><strong>${i.nome}</strong></td><td>${i.categoria}</td><td style="color:${low?'var(--r)':'var(--g)'};font-weight:600">${i.qtd.toFixed(1)} ${i.un}${low?' ⚠':''}</td><td>${i.minimo} ${i.un}</td><td>${money(i.qtd*i.custo)}</td><td><button class="btn btn-sm btn-d" onclick="delIns('${i.id}')"><i class="ti ti-trash"></i></button></td></tr>`}).join('')+'</tbody></table>'}
+function rMov(){const el=document.getElementById('mov-lista');const s=[...D.movimentacoes].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,15);if(!s.length){el.innerHTML='<p class="empty">Sem movimentações.</p>';return}el.innerHTML=`<table><thead><tr><th>Data</th><th>Insumo</th><th>Tipo</th><th>Qtd</th><th>Obs</th></tr></thead><tbody>`+s.map(m=>`<tr><td>${fmt(m.data)}</td><td>${m.insumoNome}</td><td><span class="badge ${m.tipo==='entrada'?'bg':'br'}">${m.tipo}</span></td><td>${m.qtd}</td><td class="meta">${m.obs||'-'}</td></tr>`).join('')+'</tbody></table>'}
+function delIns(id){if(!confirm('Remover insumo?'))return;D.insumos=D.insumos.filter(x=>x.id!==id);D.movimentacoes=D.movimentacoes.filter(x=>x.insumoId!==id);save();rEst();rSels()}
+
+function rDash(){
+  const tComb=D.combustivel.reduce((s,x)=>s+x.litros,0);
+  const tGanho=D.ganhos.reduce((s,x)=>s+x.valor,0);
+  const tProd=D.producao.reduce((s,x)=>s+x.sacas,0);
+  const pAbertos=D.problemas.filter(p=>!p.solucao).length;
+  document.getElementById('dash-stats').innerHTML=`<div class="scard"><div class="sval">${tComb.toFixed(0)} L</div><div class="slbl">Combustível total</div></div><div class="scard"><div class="sval" style="color:var(--g)">${money(tGanho)}</div><div class="slbl">Total de ganhos</div></div><div class="scard"><div class="sval">${tProd.toFixed(1)}</div><div class="slbl">Sacas colhidas</div></div><div class="scard"><div class="sval" style="color:${pAbertos?'var(--r)':'var(--g)'}">${pAbertos}</div><div class="slbl">Problemas abertos</div></div>`;
+  const tRec=D.financeiro.filter(x=>x.tipo==='receita'&&x.status==='pago').reduce((a,x)=>a+x.valor,0);
+  const tDesp=D.financeiro.filter(x=>x.tipo==='despesa'&&x.status==='pago').reduce((a,x)=>a+x.valor,0);
+  const tPend=D.financeiro.filter(x=>x.status==='pendente').reduce((a,x)=>a+x.valor,0);
+  const res=tRec-tDesp;
+  document.getElementById('dash-fin').innerHTML=`<div class="g3"><div class="scard"><div class="sval" style="color:var(--g)">${money(tRec)}</div><div class="slbl">Receitas</div></div><div class="scard"><div class="sval" style="color:var(--r)">${money(tDesp)}</div><div class="slbl">Despesas</div></div><div class="scard"><div class="sval" style="color:${res>=0?'var(--g)':'var(--r)'}">${money(res)}</div><div class="slbl">Resultado</div></div></div>${tPend?`<div class="alert-box al-w" style="margin-top:10px"><i class="ti ti-clock"></i> ${money(tPend)} em pagamentos pendentes</div>`:''}`;
+  const se=document.getElementById('dash-safra');
+  if(D.safra){const pct=Math.min(100,Math.round(tProd/D.safra.meta*100));se.innerHTML=`<p class="meta" style="margin-bottom:6px">Safra ${D.safra.ano} — meta: ${D.safra.meta} sacas</p><div class="pbar"><div class="pfill" style="width:${pct}%"></div></div><p style="font-size:13px;margin-top:5px;color:var(--g);font-weight:600">${pct}% concluído — ${tProd.toFixed(1)} sacas</p>`}else se.innerHTML='<p class="empty">Configure a meta na aba Safra.</p>';
+  const me=document.getElementById('dash-manut');const prox=D.manutencao.filter(m=>m.status==='agendado').slice(0,3);
+  me.innerHTML=prox.length?prox.map(m=>`<div style="padding:6px 0;border-bottom:1px solid #f0f0ea"><span class="badge bp">${m.tipo}</span> <strong style="font-size:12px">${m.tratorNome}</strong><span class="meta" style="display:block">${fmt(m.data)}</span></div>`).join(''):'<p class="empty">Nenhuma agendada.</p>';
+  const ee=document.getElementById('dash-estq');const crit=D.insumos.filter(i=>i.qtd<=i.minimo);
+  ee.innerHTML=crit.length?crit.map(i=>`<div style="padding:5px 0;border-bottom:1px solid #f0f0ea"><span class="badge br">Baixo</span> <span style="font-size:12px">${i.nome}: ${i.qtd.toFixed(1)} ${i.un}</span></div>`).join(''):'<p class="empty">Estoque normalizado ✓</p>';
+  const pe=document.getElementById('dash-probs');const probs=D.problemas.filter(p=>!p.solucao).sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3);
+  pe.innerHTML=probs.length?probs.map(p=>`<div style="padding:5px 0;border-bottom:1px solid #f0f0ea"><span class="badge ${gbg(p.gravidade)}">${p.gravidade}</span> <span style="font-size:12px">${p.desc.slice(0,55)}${p.desc.length>55?'...':''}</span></div>`).join(''):'<p class="empty">Sem problemas abertos ✓</p>';
+  const alertas=[];
+  if(D.insumos.filter(i=>i.qtd<=i.minimo).length)alertas.push({cls:'al-w',msg:`${D.insumos.filter(i=>i.qtd<=i.minimo).length} insumo(s) com estoque crítico — verifique a aba Estoque`});
+  if(D.financeiro.filter(x=>x.status==='pendente').length)alertas.push({cls:'al-w',msg:`${D.financeiro.filter(x=>x.status==='pendente').length} pagamento(s) pendente(s) — verifique o Financeiro`});
+  if(D.problemas.filter(p=>p.gravidade==='Alta'&&!p.solucao).length)alertas.push({cls:'al-d',msg:`Problema(s) de alta gravidade sem solução registrada!`});
+  document.getElementById('dash-alertas').innerHTML=alertas.map(a=>`<div class="alert-box ${a.cls}"><i class="ti ti-bell"></i> ${a.msg}</div>`).join('');
+}
+
+function gerarRel(){
+  const mes=v('rel-mes'),ano=v('rel-ano');const pref=`${ano}-${mes}`;
+  const nomes=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const nm=nomes[parseInt(mes)-1];
+  const finM=D.financeiro.filter(x=>x.data.startsWith(pref));
+  const combM=D.combustivel.filter(x=>x.data.startsWith(pref));
+  const prodM=D.producao.filter(x=>x.data.startsWith(pref));
+  const aplM=D.aplicacoes.filter(x=>x.data.startsWith(pref));
+  const probM=D.problemas.filter(x=>x.data.startsWith(pref));
+  const climaM=D.clima.filter(x=>x.data.startsWith(pref));
+  const tRec=finM.filter(x=>x.tipo==='receita'&&x.status==='pago').reduce((a,x)=>a+x.valor,0);
+  const tDesp=finM.filter(x=>x.tipo==='despesa'&&x.status==='pago').reduce((a,x)=>a+x.valor,0);
+  const tCombCusto=combM.reduce((s,x)=>s+(x.litros*x.valor),0);
+  const tSacas=prodM.reduce((s,x)=>s+x.sacas,0);
+  const chuva=climaM.reduce((s,x)=>s+x.chuva,0);
+  document.getElementById('rel-output').innerHTML=`<div class="card"><div class="stitle"><i class="ti ti-file-analytics"></i> Relatório — ${nm} / ${ano}</div><div class="g5" style="margin-bottom:16px"><div class="scard"><div class="sval" style="color:var(--g)">${money(tRec)}</div><div class="slbl">Receitas</div></div><div class="scard"><div class="sval" style="color:var(--r)">${money(tDesp+tCombCusto)}</div><div class="slbl">Despesas</div></div><div class="scard"><div class="sval" style="color:${tRec-tDesp-tCombCusto>=0?'var(--g)':'var(--r)'}">${money(tRec-tDesp-tCombCusto)}</div><div class="slbl">Resultado</div></div><div class="scard"><div class="sval">${tSacas.toFixed(1)}</div><div class="slbl">Sacas</div></div><div class="scard"><div class="sval">${chuva.toFixed(0)} mm</div><div class="slbl">Chuva total</div></div></div><div class="g2"><div><p style="font-size:12px;font-weight:600;margin-bottom:8px;color:#555">LANÇAMENTOS FINANCEIROS (${finM.length})</p>${finM.length?finM.slice(0,6).map(f=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #f0f0ea"><span>${f.categoria}</span><strong style="color:${f.tipo==='receita'?'var(--g)':'var(--r)'}">${money(f.valor)}</strong></div>`).join(''):'<p class="empty" style="padding:6px">Sem lançamentos</p>'}<p style="font-size:12px;font-weight:600;margin:14px 0 8px;color:#555">APLICAÇÕES (${aplM.length})</p>${aplM.length?aplM.slice(0,4).map(a=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid #f0f0ea">${fmt(a.data)} — ${a.produto} em ${a.talhaoNome}</div>`).join(''):'<p class="empty" style="padding:6px">Sem aplicações</p>'}</div><div><p style="font-size:12px;font-weight:600;margin-bottom:8px;color:#555">PRODUÇÃO (${prodM.length} dias)</p>${prodM.length?prodM.slice(0,5).map(p=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #f0f0ea"><span>${fmt(p.data)} — ${p.talhaoNome}</span><strong>${p.sacas} sc</strong></div>`).join(''):'<p class="empty" style="padding:6px">Sem produção</p>'}<p style="font-size:12px;font-weight:600;margin:14px 0 8px;color:#555">PROBLEMAS (${probM.length})</p>${probM.length?probM.slice(0,4).map(p=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid #f0f0ea"><span class="badge ${gbg(p.gravidade)}">${p.gravidade}</span> ${p.desc.slice(0,50)}</div>`).join(''):'<p class="empty" style="padding:6px">Sem problemas</p>'}</div></div><div class="divider"></div><button class="btn btn-a btn-sm" onclick="exportarRelExcel('${mes}','${ano}')"><i class="ti ti-download"></i> Exportar este mês em Excel</button></div>`;
+}
+
+function exportarTudo(){
+  const wb=XLSX.utils.book_new();
+  const sh=(nm,rows)=>{if(rows.length)XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),nm)};
+  sh('Financeiro',D.financeiro.map(f=>({Data:fmt(f.data),Tipo:f.tipo,Categoria:f.categoria,Valor:f.valor,Status:f.status,Descricao:f.desc})));
+  sh('Combustivel',D.combustivel.map(c=>({Data:fmt(c.data),Maquina:c.tratorNome,Litros:c.litros,Horimetro:c.horimetro,Valor_L:c.valor,Custo:(c.litros*c.valor).toFixed(2)})));
+  sh('Manutencao',D.manutencao.map(m=>({Data:fmt(m.data),Maquina:m.tratorNome,Tipo:m.tipo,Status:m.status,Custo:m.custo,Prox:m.prox,Resp:m.responsavel,Obs:m.obs})));
+  sh('Ganhos',D.ganhos.map(g=>({Data:fmt(g.data),Categoria:g.categoria,Valor:g.valor,Sacas:g.sacas,Preco_Saca:g.precoBag})));
+  sh('Producao',D.producao.map(p=>({Data:fmt(p.data),Sacas:p.sacas,Talhao:p.talhaoNome,Obs:p.obs})));
+  sh('Problemas',D.problemas.map(p=>({Data:fmt(p.data),Categoria:p.categoria,Descricao:p.desc,Gravidade:p.gravidade,Custo:p.custo,Solucao:p.solucao||'Pendente'})));
+  sh('Talhoes',D.talhoes.map(t=>({Nome:t.nome,Area_ha:t.area,Variedade:t.variedade,Ano_plantio:t.ano,Plantas:t.plantas,Espacamento:t.espacamento})));
+  sh('Aplicacoes',D.aplicacoes.map(a=>({Data:fmt(a.data),Talhao:a.talhaoNome,Tipo:a.tipo,Produto:a.produto,Dose:a.dose,Responsavel:a.responsavel,Custo:a.custo})));
+  sh('Qualidade',D.qualidade.map(q=>({Data:fmt(q.data),Lote:q.lote,Talhao:q.talhaoNome,Tipo:q.tipo,Bebida:q.bebida,Peneira:q.peneira,Score:q.score,Defeitos:q.defeitos,Sacas:q.sacas})));
+  sh('Clima',D.clima.map(c=>({Data:fmt(c.data),Condicao:c.condicao,Chuva_mm:c.chuva,Temp_min:c.tmin,Temp_max:c.tmax,Umidade:c.umidade,Impacto:c.obs})));
+  sh('EPI',D.epi.map(e=>({Data:fmt(e.data),Funcionario:e.funcionarioNome,EPI:e.item,Quantidade:e.quantidade,Validade:fmt(e.validade)})));
+  sh('Estoque',D.insumos.map(i=>({Insumo:i.nome,Categoria:i.categoria,Qtd_atual:i.qtd,Unidade:i.un,Minimo:i.minimo,Custo_unit:i.custo,Valor_total:(i.qtd*i.custo).toFixed(2)})));
+  sh('Funcionarios',D.funcionarios.map(f=>({Nome:f.nome,Funcao:f.funcao,Contrato:f.contrato,Salario:f.salario,Dia_pag:f.diaPag,Tel:f.tel,Admissao:fmt(f.admissao)})));
+  sh('OrdemServico',D.ordemservico.map(o=>({Data:fmt(o.data),Servico:o.servico,Talhao:o.talhaoNome,Maquina:o.tratorNome,Qtd_Produzida:o.qtd,H_Inicio:o.hinicio,H_Fim:o.hfim,Duracao:o.duracao,Diesel_L:o.diesel,Operador:o.operadorNome,Responsavel:o.responsavelNome,Obs:o.obs})));
+  if(!wb.SheetNames.length){alert('Nenhum dado para exportar ainda.');return}
+  XLSX.writeFile(wb,'fazenda_cafe_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');
+}
+function exportarRelExcel(mes,ano){
+  const pref=`${ano}-${mes}`;const wb=XLSX.utils.book_new();
+  const sh=(nm,rows)=>{if(rows.length)XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),nm)};
+  sh('Financeiro',D.financeiro.filter(x=>x.data.startsWith(pref)).map(f=>({Data:fmt(f.data),Tipo:f.tipo,Categoria:f.categoria,Valor:f.valor,Status:f.status})));
+  sh('Producao',D.producao.filter(x=>x.data.startsWith(pref)).map(p=>({Data:fmt(p.data),Sacas:p.sacas,Talhao:p.talhaoNome})));
+  sh('Aplicacoes',D.aplicacoes.filter(x=>x.data.startsWith(pref)).map(a=>({Data:fmt(a.data),Talhao:a.talhaoNome,Produto:a.produto,Dose:a.dose,Custo:a.custo})));
+  sh('Clima',D.clima.filter(x=>x.data.startsWith(pref)).map(c=>({Data:fmt(c.data),Condicao:c.condicao,Chuva_mm:c.chuva,Temp_min:c.tmin,Temp_max:c.tmax})));
+  sh('Combustivel',D.combustivel.filter(x=>x.data.startsWith(pref)).map(c=>({Data:fmt(c.data),Maquina:c.tratorNome,Litros:c.litros,Custo:(c.litros*c.valor).toFixed(2)})));
+  if(!wb.SheetNames.length){alert('Sem dados neste período.');return}
+  const ns=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  XLSX.writeFile(wb,`relatorio_${ns[parseInt(mes)-1]}_${ano}.xlsx`);
+}
+function backupJSON(){
+  const d={...D};
+  // Remove fotos do backup para manter arquivo menor (opcional)
+  const blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='backup_fazenda_'+td()+'.json';a.click();URL.revokeObjectURL(a.href);
+}
+function restaurarBackup(input){
+  const f=input.files[0];if(!f)return;
+  if(!confirm('Isso vai substituir todos os dados atuais. Confirma?'))return;
+  const r=new FileReader();r.onload=e=>{try{D=Object.assign({...DEF},...[JSON.parse(e.target.result)]);save();alert('Backup restaurado com sucesso!');location.reload()}catch(err){alert('Arquivo de backup inválido.')}};r.readAsText(f);
+}
+
+function addOS(){
+  const dt=v('os-data'),trid=v('os-trator'),talid=v('os-talhao'),servico=v('os-servico');
+  if(!dt||!servico)return alert('Preencha pelo menos a data e o serviço');
+  const trNome=D.tratores.find(t=>t.id===trid)?.nome||'';
+  const talNome=D.talhoes.find(t=>t.id===talid)?.nome||'';
+  const opNome=D.funcionarios.find(f=>f.id===v('os-operador'))?.nome||v('os-operador')||'';
+  const respNome=D.funcionarios.find(f=>f.id===v('os-responsavel'))?.nome||v('os-responsavel')||'';
+  const hinicio=v('os-hinicio'),hfim=v('os-hfim');
+  let duracao='';
+  if(hinicio&&hfim){const[h1,m1]=hinicio.split(':').map(Number);const[h2,m2]=hfim.split(':').map(Number);const min=(h2*60+m2)-(h1*60+m1);if(min>0)duracao=`${Math.floor(min/60)}h${min%60>0?min%60+'min':''}`}
+  D.ordemservico.push({id:uid(),data:dt,trator:trid,tratorNome:trNome,talhao:talid,talhaoNome:talNome,servico,qtd:v('os-qtd'),hinicio,hfim,duracao,diesel:n('os-diesel'),operador:v('os-operador'),operadorNome:opNome,responsavel:v('os-responsavel'),responsavelNome:respNome,obs:v('os-obs')});
+  save();rOS();
+  sv('os-qtd','');sv('os-hinicio','');sv('os-hfim','');sv('os-diesel','');sv('os-obs','');
+}
+
+function rOS(){
+  const el=document.getElementById('os-lista');
+  const el2=document.getElementById('os-resumo');
+  const fs=v('os-filtro-servico'),ft=v('os-filtro-trator');
+  let s=[...D.ordemservico].filter(x=>(fs?x.servico===fs:true)&&(ft?x.trator===ft:true)).sort((a,b)=>b.data.localeCompare(a.data));
+  const totalDiesel=s.reduce((acc,x)=>acc+x.diesel,0);
+  const servicosCont={};s.forEach(x=>{servicosCont[x.servico]=(servicosCont[x.servico]||0)+1});
+  const topServico=Object.entries(servicosCont).sort((a,b)=>b[1]-a[1])[0];
+  el2.innerHTML=`<div class="g3"><div class="scard"><div class="sval">${s.length}</div><div class="slbl">Total de O.S.</div></div><div class="scard"><div class="sval">${totalDiesel.toFixed(1)} L</div><div class="slbl">Diesel consumido</div></div><div class="scard"><div class="sval">${topServico?topServico[0]:'-'}</div><div class="slbl">Serviço mais frequente</div></div></div>`;
+  if(!s.length){el.innerHTML='<p class="empty">Nenhuma ordem de serviço registrada.</p>';return}
+  el.innerHTML=`<table><thead><tr><th>Data</th><th>Serviço</th><th>Talhão</th><th>Máquina</th><th>Qtd produzida</th><th>Horário</th><th>Diesel</th><th>Operador</th><th>Responsável</th><th></th></tr></thead><tbody>`+
+  s.map(o=>`<tr>
+    <td>${fmt(o.data)}</td>
+    <td><span class="badge bg">${o.servico}</span></td>
+    <td>${o.talhaoNome||'-'}</td>
+    <td>${o.tratorNome||'-'}</td>
+    <td><strong>${o.qtd||'-'}</strong></td>
+    <td>${o.hinicio&&o.hfim?o.hinicio+' – '+o.hfim+(o.duracao?' ('+o.duracao+')':''):o.hinicio||'-'}</td>
+    <td>${o.diesel?o.diesel+'L':'-'}</td>
+    <td>${o.operadorNome||'-'}</td>
+    <td>${o.responsavelNome||'-'}</td>
+    <td><button class="btn btn-sm btn-d" onclick="delOS('${o.id}')"><i class="ti ti-trash"></i></button></td>
+  </tr>`).join('')+'</tbody></table>';
+}
+function delOS(id){if(!confirm('Remover esta O.S.?'))return;D.ordemservico=D.ordemservico.filter(x=>x.id!==id);save();rOS()}
+
+// PWA Install
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('btn-instalar').style.display = 'flex';
+});
+window.addEventListener('appinstalled', () => {
+  document.getElementById('btn-instalar').style.display = 'none';
+  deferredPrompt = null;
+});
+function instalarApp() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+  }
+}
+// Detecta iOS e mostra banner
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+if (isIOS && !isStandalone) {
+  const b = document.getElementById('ios-banner');
+  if (b) b.style.display = 'flex';
+}
+
+rSels();rDash();
+</script>
+</body>
+</html>
